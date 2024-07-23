@@ -9,11 +9,12 @@ import {
 	getAssociatedTokenAddress,
 	ASSOCIATED_TOKEN_PROGRAM_ID,
 	createAssociatedTokenAccountInstruction,
+	createMintToInstruction,
 } from "@solana/spl-token";
 
 const Layout = (props) => {
 	const { connection } = useConnection();
-	const { publicKey, sendTransaction } = useWallet();
+	const { publicKey, sendTransaction, confirmTransaction } = useWallet();
 	const [balance, setBalance] = useState(0);
 	const [txnSig, setTxnSig] = useState("");
 	const [mintKey, setMintKey] = useState("");
@@ -97,6 +98,27 @@ const Layout = (props) => {
 		});
 	};
 
+	const mintTokens = () => {
+		if (!connection || !publicKey) {
+			return;
+		}
+
+		const mint = new web3.PublicKey(mintKey);
+		const associatedTokenAccount = new web3.PublicKey(tokenAccount);
+		const transaction = new web3.Transaction();
+
+		transaction.add(
+			createMintToInstruction(
+				mint,
+				associatedTokenAccount,
+				publicKey,
+				1000000000
+			)
+		);
+
+		sendTransaction(transaction, connection);
+	};
+
 	return (
 		<>
 			<h3>SOL Balance: {balance}</h3>
@@ -113,6 +135,7 @@ const Layout = (props) => {
 			) : null}
 			<button onClick={createTokenAccount}>Create Token Account</button>
 			{tokenAccount !== "" ? <p>Token Account: {tokenAccount}</p> : null}
+			<button onClick={mintTokens}>Mint 1,000,000,000 Tokens</button>
 		</>
 	);
 };
