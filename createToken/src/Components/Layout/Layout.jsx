@@ -6,6 +6,9 @@ import {
 	TOKEN_PROGRAM_ID,
 	getMinimumBalanceForRentExemptMint,
 	createInitializeMintInstruction,
+	getAssociatedTokenAddress,
+	ASSOCIATED_TOKEN_PROGRAM_ID,
+	createAssociatedTokenAccountInstruction,
 } from "@solana/spl-token";
 
 const Layout = (props) => {
@@ -13,7 +16,8 @@ const Layout = (props) => {
 	const { publicKey, sendTransaction } = useWallet();
 	const [balance, setBalance] = useState(0);
 	const [txnSig, setTxnSig] = useState("");
-	const [mint, setMint] = useState("");
+	const [mintKey, setMintKey] = useState("");
+	const [tokenAccount, setTokenAccount] = useState("");
 
 	useEffect(() => {
 		const getInfo = () => {
@@ -57,7 +61,39 @@ const Layout = (props) => {
 			signers: [mint],
 		}).then((sig) => {
 			setTxnSig(sig);
-			setMint(mint.publicKey.toString());
+			setMintKey(mint.publicKey.toString());
+		});
+	};
+
+	const createTokenAccount = () => {
+		if (!connection || !publicKey) {
+			return;
+		}
+
+		const mint = new web3.PublicKey(mintKey);
+		const transaction = new web3.Transaction();
+
+		getAssociatedTokenAddress(
+			mint,
+			publicKey,
+			false,
+			TOKEN_PROGRAM_ID,
+			ASSOCIATED_TOKEN_PROGRAM_ID
+		).then((associatedToken) => {
+			transaction.add(
+				createAssociatedTokenAccountInstruction(
+					publicKey,
+					associatedToken,
+					publicKey,
+					mint,
+					TOKEN_PROGRAM_ID,
+					ASSOCIATED_TOKEN_PROGRAM_ID
+				)
+			);
+
+			sendTransaction(transaction, connection).then((sig) => {
+				setTokenAccount(associatedToken.toString());
+			});
 		});
 	};
 
@@ -65,13 +101,18 @@ const Layout = (props) => {
 		<>
 			<h3>SOL Balance: {balance}</h3>
 			<button onClick={createMint}>Create Token Mint</button>
-			{mint !== "" && txnSig !== "" ? (
-				<p>
-					Token Mint: {mint}
-					<n></n>Txn Link:{" "}
-					{`https://explorer.solana.com/tx/${txnSig}?cluster=devnet`}
-				</p>
+			{mintKey !== "" && txnSig !== "" ? (
+				<>
+					{" "}
+					<p>Token Mint: {mintKey} </p>
+					<p>
+						Txn Link:
+						{`https://explorer.solana.com/tx/${txnSig}?cluster=devnet`}
+					</p>
+				</>
 			) : null}
+			<button onClick={createTokenAccount}>Create Token Account</button>
+			{tokenAccount !== "" ? <p>Token Account: {tokenAccount}</p> : null}
 		</>
 	);
 };
