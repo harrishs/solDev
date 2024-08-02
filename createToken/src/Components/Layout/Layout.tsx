@@ -11,8 +11,6 @@ import {
 	createAssociatedTokenAccountInstruction,
 	createMintToInstruction,
 } from "@solana/spl-token";
-import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
-import { walletAdapterIdentity } from "@metaplex-foundation/umi-signer-wallet-adapters";
 import { createCreateMetadataAccountV3Instruction } from "@metaplex-foundation/mpl-token-metadata";
 
 const Layout = () => {
@@ -100,7 +98,7 @@ const Layout = () => {
 				)
 			);
 
-			sendTransaction(transaction, connection).then((sig) => {
+			sendTransaction(transaction, connection).then(() => {
 				setTokenAccount(associatedToken.toString());
 			});
 		});
@@ -173,6 +171,14 @@ const Layout = () => {
 
 	return (
 		<>
+			<h1>
+				<a
+					href="https://www.loom.com/share/6efd1f1a0f3246579caf6860b854b7f7"
+					target="_blank"
+				>
+					Demo
+				</a>
+			</h1>
 			<h3>SOL Balance: {balance}</h3>
 			<button onClick={createMint}>Create Token Mint</button>
 			{mintKey !== "" && txnSig !== "" ? (
