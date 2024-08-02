@@ -11,23 +11,29 @@ import {
 	createAssociatedTokenAccountInstruction,
 	createMintToInstruction,
 } from "@solana/spl-token";
+import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
+import { walletAdapterIdentity } from "@metaplex-foundation/umi-signer-wallet-adapters";
+import { createCreateMetadataAccountV3Instruction } from "@metaplex-foundation/mpl-token-metadata";
 
-const Layout = (props) => {
+const Layout = () => {
 	const { connection } = useConnection();
-	const { publicKey, sendTransaction, confirmTransaction } = useWallet();
+	const { publicKey, sendTransaction } = useWallet();
 	const [balance, setBalance] = useState(0);
 	const [txnSig, setTxnSig] = useState("");
 	const [mintKey, setMintKey] = useState("");
 	const [tokenAccount, setTokenAccount] = useState("");
+	const [name, setName] = useState("");
+	const [symbol, setSymbol] = useState("");
+	const [uri, setUri] = useState("https://arweave.net/1234");
 
 	useEffect(() => {
 		const getInfo = () => {
 			if (connection && publicKey) {
 				connection.getAccountInfo(publicKey).then((info) => {
-					setBalance(info.lamports / web3.LAMPORTS_PER_SOL);
+					setBalance(!info ? 0 : info.lamports / web3.LAMPORTS_PER_SOL);
 				});
 			} else {
-				setBalance(null);
+				setBalance(0);
 			}
 		};
 		getInfo();
@@ -37,9 +43,11 @@ const Layout = (props) => {
 		if (!connection || !publicKey) {
 			return;
 		}
-		const mint = web3.Keypair.generate();
-		const lamports = await getMinimumBalanceForRentExemptMint(connection);
-		const transaction = new web3.Transaction();
+		const mint: web3.Keypair = web3.Keypair.generate();
+		const lamports: number = await getMinimumBalanceForRentExemptMint(
+			connection
+		);
+		const transaction: web3.Transaction = new web3.Transaction();
 
 		transaction.add(
 			web3.SystemProgram.createAccount({
@@ -98,7 +106,8 @@ const Layout = (props) => {
 		});
 	};
 
-	const mintTokens = () => {
+	const mintTokens = async (event: any) => {
+		event.preventDefault();
 		if (!connection || !publicKey) {
 			return;
 		}
@@ -106,6 +115,49 @@ const Layout = (props) => {
 		const mint = new web3.PublicKey(mintKey);
 		const associatedTokenAccount = new web3.PublicKey(tokenAccount);
 		const transaction = new web3.Transaction();
+		const TOKEN_METADATA_PROGRAM_ID = new web3.PublicKey(
+			"metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+		);
+
+		const metaData = {
+			name: name,
+			symbol: symbol,
+			uri: uri,
+			sellerFeeBasisPoints: 0,
+			creators: null,
+			collection: null,
+			uses: null,
+		};
+
+		const metadataPDAAndBump = web3.PublicKey.findProgramAddressSync(
+			[
+				Buffer.from("metadata"),
+				TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+				mint.toBuffer(),
+			],
+			TOKEN_METADATA_PROGRAM_ID
+		);
+
+		const metadataPDA = metadataPDAAndBump[0];
+
+		transaction.add(
+			createCreateMetadataAccountV3Instruction(
+				{
+					metadata: metadataPDA,
+					mint: mint,
+					mintAuthority: publicKey,
+					payer: publicKey,
+					updateAuthority: publicKey,
+				},
+				{
+					createMetadataAccountArgsV3: {
+						collectionDetails: null,
+						data: metaData,
+						isMutable: true,
+					},
+				}
+			)
+		);
 
 		transaction.add(
 			createMintToInstruction(
@@ -116,7 +168,7 @@ const Layout = (props) => {
 			)
 		);
 
-		sendTransaction(transaction, connection);
+		sendTransaction(transaction, connection).then((sig) => console.log(sig));
 	};
 
 	return (
@@ -135,7 +187,21 @@ const Layout = (props) => {
 			) : null}
 			<button onClick={createTokenAccount}>Create Token Account</button>
 			{tokenAccount !== "" ? <p>Token Account: {tokenAccount}</p> : null}
-			<button onClick={mintTokens}>Mint 1,000,000,000 Tokens</button>
+			{tokenAccount !== "" && mintKey !== "" && txnSig !== "" ? (
+				<form onSubmit={mintTokens}>
+					<label>Token Name: </label>
+					<input type="text" onChange={(e) => setName(e.target.value)} />
+					<label>Token Symbol: </label>
+					<input type="text" onChange={(e) => setSymbol(e.target.value)} />
+					<label>Token Image URI: </label>
+					<input
+						type="text"
+						onChange={(e) => setUri(e.target.value)}
+						defaultValue="https://arweave.net/1234"
+					/>
+					<button type="submit">Mint 1,000,000,000 Tokens</button>
+				</form>
+			) : null}
 		</>
 	);
 };
